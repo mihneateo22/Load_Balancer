@@ -50,6 +50,76 @@ function buildCards(servers) {
   });
 }
 
-// ---------- test temporar (il stergem la Faza 3) ----------
+// ---------- starea buclei ----------
 
-getStats().then(data => buildCards(data.servers));
+let prev = null;
+let failures = 0;
+
+// ---------- randare ----------
+
+function render(data) {
+  const dt = prev ? (data.uptime_seconds - prev.uptime_seconds) || 1 : 1;
+
+  data.servers.forEach(s => {
+    const ref = cardRefs.get(s.id);
+    if (!ref) return;
+
+    const before = prev ? prev.servers.find(x => x.id === s.id) : null;
+    const rate = before ? Math.round((s.packets - before.packets) / dt) : 0;
+
+    ref.rate.textContent    = rate;
+    ref.packets.textContent = s.packets.toLocaleString();
+    ref.conns.textContent   = s.connections;
+    ref.flows.textContent   = s.active_flows;
+    ref.lat.textContent     = s.last_seen_ms !== null ? `${s.last_seen_ms}ms` : '—';
+
+    ref.root.classList.toggle('dead', !s.alive);
+
+    if (rate > 0) pulse(ref.root);
+  });
+
+  document.getElementById('subtitle').textContent =
+    `${data.vip} · ${data.algorithm}`;
+
+  document.getElementById('totals').textContent =
+    `${data.totals.packets.toLocaleString()} packets · ` +
+    `${data.totals.connections} connections · ` +
+    `${data.totals.flows_tracked} active flows · ` +
+    `up ${data.uptime_seconds}s`;
+}
+
+// ---------- animatie ----------
+
+function pulse(el) {
+  el.classList.remove('pulse');
+  void el.offsetWidth;
+  el.classList.add('pulse');
+}
+
+// ---------- status ----------
+
+function setStatus(state) {
+  const el = document.getElementById('status');
+  el.textContent = state;
+  el.className = state;
+}
+
+// ---------- bucla ----------
+
+async function tick() {
+  try {
+    const data = await getStats();
+    if (cardRefs.size === 0) buildCards(data.servers);
+    render(data);
+    prev = data;
+    failures = 0;
+    setStatus('connected');
+  } catch (e) {
+    failures++;
+    setStatus(failures > 3 ? 'disconnected' : 'reconnecting');
+    console.error('tick failed:', e);
+  }
+}
+
+setInterval(tick, 1000);
+tick();
