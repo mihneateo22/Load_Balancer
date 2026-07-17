@@ -55,9 +55,35 @@ function buildCards(servers) {
 let prev = null;
 let failures = 0;
 
+// ---------- bara de distributie ----------
+
+function renderDistribution(data) {
+  const bar = document.getElementById('distribution');
+  const total = data.totals.packets || 1;
+
+  if (bar.children.length === 0) {
+    data.servers.forEach(s => {
+      const seg = document.createElement('div');
+      seg.className = `seg seg-${s.id}`;
+      bar.appendChild(seg);
+    });
+  }
+
+  data.servers.forEach(s => {
+    const seg = bar.querySelector(`.seg-${s.id}`);
+    if (!seg) return;
+
+    const pct = (s.packets / total) * 100;
+    seg.style.flexGrow = pct;
+    seg.textContent = pct > 8 ? `${pct.toFixed(1)}%` : '';
+    seg.classList.toggle('dead', !s.alive);
+  });
+}
+
 // ---------- randare ----------
 
 function render(data) {
+  renderDistribution(data);
   const dt = prev ? (data.uptime_seconds - prev.uptime_seconds) || 1 : 1;
 
   data.servers.forEach(s => {
@@ -120,6 +146,33 @@ async function tick() {
     console.error('tick failed:', e);
   }
 }
+
+// ---------- kill button ----------
+
+document.getElementById('cards').addEventListener('click', async (e) => {
+  const btn = e.target.closest('.kill');
+  if (!btn) return;
+
+  const id = Number(btn.dataset.id);
+
+  if (MOCK) {
+    MockLB.toggle(id);
+    tick();
+    return;
+  }
+
+  btn.disabled = true;
+  try {
+    const r = await fetch(`/api/servers/${id}/toggle`, { method: 'POST' });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    await tick();
+  } catch (err) {
+    console.error('toggle failed:', err);
+    setStatus('error');
+  } finally {
+    btn.disabled = false;
+  }
+});
 
 setInterval(tick, 1000);
 tick();
