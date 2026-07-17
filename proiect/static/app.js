@@ -1,17 +1,14 @@
 // app.js — logica dashboard-ului
 
-const MOCK = true;   // Faza 7: schimbi in false
-
-// ---------- acces la date ----------
+const MOCK = false;
 
 async function getStats() {
   if (MOCK) return MockLB.tick();
-  const r = await fetch('/api/traffic');
+  // IP ACTUALIZAT AICI:
+  const r = await fetch(`http://172.27.32.145:5000/api/traffic?_t=${Date.now()}`, { cache: 'no-store' });
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
   return r.json();
 }
-
-// ---------- construirea cardurilor ----------
 
 const cardRefs = new Map();
 
@@ -51,12 +48,7 @@ function buildCards(servers) {
   });
 }
 
-// ---------- starea buclei ----------
-
-let prev = null;
 let failures = 0;
-
-// ---------- bara de distributie ----------
 
 function renderDistribution(data) {
   const bar = document.getElementById('distribution');
@@ -80,8 +72,6 @@ function renderDistribution(data) {
     seg.classList.toggle('dead', !s.alive);
   });
 }
-
-// ---------- topologia ----------
 
 const TOPO_W = 900;
 const TOPO_H = 150;
@@ -127,7 +117,7 @@ function buildTopology(servers) {
   `;
 }
 
-const RATE_CEILING = 60;   // pkt/s la care linia atinge grosimea maxima
+const RATE_CEILING = 60;   
 
 function renderTopology(data, rates) {
   data.servers.forEach(s => {
@@ -145,15 +135,11 @@ function renderTopology(data, rates) {
   });
 }
 
-// ---------- randare ----------
-
 function render(data) {
-  const dt = prev ? (data.uptime_seconds - prev.uptime_seconds) || 1 : 1;
   const rates = {};
 
   data.servers.forEach(s => {
-    const before = prev ? prev.servers.find(x => x.id === s.id) : null;
-    rates[s.id] = before ? Math.round((s.packets - before.packets) / dt) : 0;
+    rates[s.id] = s.rate_backend || 0;
   });
 
   renderTopology(data, rates);
@@ -167,15 +153,16 @@ function render(data) {
 
     ref.rate.textContent    = rate;
     ref.packets.textContent = s.packets.toLocaleString();
-    ref.conns.textContent   = s.connections;
-    ref.flows.textContent   = s.active_flows;
+    ref.conns.textContent   = s.connections.toLocaleString();
+    ref.flows.textContent   = s.active_flows.toLocaleString();
     ref.lat.textContent     = s.last_seen_ms !== null ? `${s.last_seen_ms}ms` : '—';
 
     ref.root.classList.toggle('dead', !s.alive);
+    
     ref.kill.textContent = s.alive ? 'kill' : 'start';
     ref.kill.classList.toggle('start', !s.alive);
 
-    if (rate > 0) pulse(ref.root);
+    if (rate > 0) pulse(ref.dot);
   });
 
   document.getElementById('subtitle').textContent =
@@ -183,12 +170,10 @@ function render(data) {
 
   document.getElementById('totals').textContent =
     `${data.totals.packets.toLocaleString()} packets · ` +
-    `${data.totals.connections} connections · ` +
-    `${data.totals.flows_tracked} active flows · ` +
+    `${data.totals.connections.toLocaleString()} connections · ` +
+    `${data.totals.flows_tracked.toLocaleString()} active flows · ` +
     `up ${data.uptime_seconds}s`;
 }
-
-// ---------- animatie ----------
 
 function pulse(el) {
   el.classList.remove('pulse');
@@ -196,25 +181,23 @@ function pulse(el) {
   el.classList.add('pulse');
 }
 
-// ---------- status ----------
-
 function setStatus(state) {
   const el = document.getElementById('status');
   el.textContent = state;
   el.className = state;
 }
 
-// ---------- bucla ----------
-
 async function tick() {
   try {
     const data = await getStats();
+    
     if (cardRefs.size === 0) {
       buildCards(data.servers);
       buildTopology(data.servers);     
     }
+    
     render(data);
-    prev = data;
+    
     failures = 0;
     setStatus('connected');
   } catch (e) {
@@ -223,8 +206,6 @@ async function tick() {
     console.error('tick failed:', e);
   }
 }
-
-// ---------- kill button ----------
 
 document.getElementById('cards').addEventListener('click', async (e) => {
   const btn = e.target.closest('.kill');
@@ -240,7 +221,8 @@ document.getElementById('cards').addEventListener('click', async (e) => {
 
   btn.disabled = true;
   try {
-    const r = await fetch(`/api/servers/${id}/toggle`, { method: 'POST' });
+    // IP ACTUALIZAT AICI:
+    const r = await fetch(`http://172.27.32.145:5000/api/servers/${id}/toggle`, { method: 'POST' });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     await tick();
   } catch (err) {
