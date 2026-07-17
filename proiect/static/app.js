@@ -80,18 +80,89 @@ function renderDistribution(data) {
   });
 }
 
+// ---------- topologia ----------
+
+const TOPO_W = 900;
+const TOPO_H = 150;
+
+function buildTopology(servers) {
+  const el = document.getElementById('topology');
+
+  const lbX = 300, lbY = TOPO_H / 2;
+  const srvX = 700;
+  const step = TOPO_H / (servers.length + 1);
+
+  const lines = servers.map((s, i) => {
+    const y = step * (i + 1);
+    return `<path id="link-${s.id}" class="link"
+                  d="M ${lbX + 55} ${lbY} C ${lbX + 160} ${lbY}, ${srvX - 160} ${y}, ${srvX - 8} ${y}" />`;
+  }).join('');
+
+  const nodes = servers.map((s, i) => {
+    const y = step * (i + 1);
+    return `
+      <circle id="node-${s.id}" class="node" cx="${srvX}" cy="${y}" r="7" />
+      <text class="node-label" x="${srvX + 16}" y="${y + 4}">srv${s.id}</text>
+      <text class="node-ip" x="${srvX + 62}" y="${y + 4}">${s.ip}</text>
+    `;
+  }).join('');
+
+  el.innerHTML = `
+    <svg viewBox="0 0 ${TOPO_W} ${TOPO_H}" preserveAspectRatio="xMidYMid meet">
+      ${lines}
+
+      <path class="link link-client" d="M 108 ${lbY} L ${lbX - 55} ${lbY}" />
+
+      <rect class="box" x="40" y="${lbY - 24}" width="68" height="48" rx="8" />
+      <text class="box-label" x="74" y="${lbY - 2}">client</text>
+      <text class="box-ip" x="74" y="${lbY + 14}">10.0.0.1</text>
+
+      <rect class="box box-lb" x="${lbX - 55}" y="${lbY - 26}" width="110" height="52" rx="8" />
+      <text class="box-label" x="${lbX}" y="${lbY - 3}">LB</text>
+      <text class="box-ip" x="${lbX}" y="${lbY + 14}">10.0.0.100</text>
+
+      ${nodes}
+    </svg>
+  `;
+}
+
+const RATE_CEILING = 60;   // pkt/s la care linia atinge grosimea maxima
+
+function renderTopology(data, rates) {
+  data.servers.forEach(s => {
+    const link = document.getElementById(`link-${s.id}`);
+    const node = document.getElementById(`node-${s.id}`);
+    if (!link || !node) return;
+
+    const rate = rates[s.id] || 0;
+    const t = Math.min(rate / RATE_CEILING, 1);
+    const w = s.alive ? 2 + t * 12 : 2;
+
+    link.style.strokeWidth = w;
+    link.classList.toggle('dead', !s.alive);
+    node.classList.toggle('dead', !s.alive);
+  });
+}
+
 // ---------- randare ----------
 
 function render(data) {
-  renderDistribution(data);
   const dt = prev ? (data.uptime_seconds - prev.uptime_seconds) || 1 : 1;
+  const rates = {};
+
+  data.servers.forEach(s => {
+    const before = prev ? prev.servers.find(x => x.id === s.id) : null;
+    rates[s.id] = before ? Math.round((s.packets - before.packets) / dt) : 0;
+  });
+
+  renderTopology(data, rates);
+  renderDistribution(data);
 
   data.servers.forEach(s => {
     const ref = cardRefs.get(s.id);
     if (!ref) return;
 
-    const before = prev ? prev.servers.find(x => x.id === s.id) : null;
-    const rate = before ? Math.round((s.packets - before.packets) / dt) : 0;
+    const rate = rates[s.id];
 
     ref.rate.textContent    = rate;
     ref.packets.textContent = s.packets.toLocaleString();
@@ -135,7 +206,10 @@ function setStatus(state) {
 async function tick() {
   try {
     const data = await getStats();
-    if (cardRefs.size === 0) buildCards(data.servers);
+    if (cardRefs.size === 0) {
+      buildCards(data.servers);
+      buildTopology(data.servers);      // ← adaugi linia asta
+    }
     render(data);
     prev = data;
     failures = 0;

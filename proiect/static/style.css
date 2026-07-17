@@ -195,9 +195,9 @@ h1 { font-size: 22px; }
   overflow: hidden;
 }
 
-.seg-1 { background: #3b82f6; }
-.seg-2 { background: #10b981; }
-.seg-3 { background: #f59e0b; }
+.seg-1 { background: #3b82f6; }   
+.seg-2 { background: #8b5cf6; }   
+.seg-3 { background: #f59e0b; }   
 
 .seg.dead {
   background: #475569;
@@ -219,3 +219,83 @@ h1 { font-size: 22px; }
 }
 
 .card.pulse { animation: pulse .35s ease-out; }
+
+/* ---------- topologie ---------- */
+
+#topology {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 8px 12px;
+  margin-bottom: 20px;
+}
+
+#topology svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.link {
+  fill: none;
+  stroke: var(--ok);
+  stroke-linecap: round;
+  transition: stroke-width .6s cubic-bezier(.4,0,.2,1),
+              stroke .4s,
+              opacity .4s;
+}
+
+.link-client { stroke-width: 3; }
+
+.link.dead {
+  stroke: var(--text-dim);
+  stroke-dasharray: 5 5;
+  stroke-width: 1.5 !important;
+  opacity: .5;
+}
+
+.node {
+  fill: var(--ok);
+  transition: fill .4s, opacity .4s;
+}
+
+.node.dead {
+  fill: var(--text-dim);
+  opacity: .5;
+}
+
+.box {
+  fill: var(--bg);
+  stroke: var(--border);
+  stroke-width: 1.5;
+}
+
+.box-lb { stroke: var(--ok); }
+
+.box-label {
+  fill: var(--text);
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 600;
+  text-anchor: middle;
+}
+
+.box-ip {
+  fill: var(--text-dim);
+  font-family: var(--mono);
+  font-size: 10px;
+  text-anchor: middle;
+}
+
+.node-label {
+  fill: var(--text);
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.node-ip {
+  fill: var(--text-dim);
+  font-family: var(--mono);
+  font-size: 10px;
+}
