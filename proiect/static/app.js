@@ -41,6 +41,7 @@ function buildCards(servers) {
     cardRefs.set(s.id, {
       root:    el,
       dot:     el.querySelector('.dot'),
+      kill:    el.querySelector('.kill'),  
       rate:    el.querySelector('.rate'),
       packets: el.querySelector('.packets'),
       conns:   el.querySelector('.conns'),
@@ -171,6 +172,8 @@ function render(data) {
     ref.lat.textContent     = s.last_seen_ms !== null ? `${s.last_seen_ms}ms` : '—';
 
     ref.root.classList.toggle('dead', !s.alive);
+    ref.kill.textContent = s.alive ? 'kill' : 'start';
+    ref.kill.classList.toggle('start', !s.alive);
 
     if (rate > 0) pulse(ref.root);
   });
@@ -208,7 +211,7 @@ async function tick() {
     const data = await getStats();
     if (cardRefs.size === 0) {
       buildCards(data.servers);
-      buildTopology(data.servers);      // ← adaugi linia asta
+      buildTopology(data.servers);     
     }
     render(data);
     prev = data;

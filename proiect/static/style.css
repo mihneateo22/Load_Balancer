@@ -122,6 +122,17 @@ h1 { font-size: 22px; }
   cursor: pointer;
   transition: all .15s;
 }
+.kill.start {
+  border-color: color-mix(in srgb, var(--ok) 50%, transparent);
+  background: color-mix(in srgb, var(--ok) 12%, transparent);
+  color: var(--ok);
+}
+
+.kill.start:hover {
+  background: var(--ok);
+  color: var(--bg);
+  border-color: var(--ok);
+}
 
 .kill:hover {
   background: var(--dead);
